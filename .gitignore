@@ -13,3 +13,11 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+.env
+backup/
+logs/
+*.bson
+*.metadata.json
+__pycache__/
+venv/
