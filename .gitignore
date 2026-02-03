@@ -1,0 +1,15 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env/
+
+# Node.js (เผื่ออนาคต)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+# Archive messages (ทุกวัน 02:00)
+0 2 * * * root /usr/local/bin/python /app/jobs/archive_job.py >> /app/logs/archive.log 2>&1
+
+# Backup database (ทุกวัน 03:00)
+0 3 * * * root /usr/local/bin/python /app/jobs/backup_job.py >> /app/logs/backup.log 2>&1

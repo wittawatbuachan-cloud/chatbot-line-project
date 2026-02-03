@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+httpx
+motor
+pythainlp
+transformers
+sentencepiece
+torch        # อาจหนัก ถ้าไม่ใช้ local model ให้ลบออก
+python-multipart
