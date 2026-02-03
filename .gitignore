@@ -1,23 +1,55 @@
+# ======================
 # Environment variables
+# ======================
 .env
+.env.*
 
+# ======================
 # Python
+# ======================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.log
 venv/
-.env/
+.venv/
+env/
 
-# Node.js (เผื่ออนาคต)
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+
+# ======================
+# Database / Backup
+# ======================
+backup/
+*.bson
+*.json
+
+# ======================
+# MongoDB
+# ======================
+data/
+dump/
+
+# ======================
+# Node (if any)
+# ======================
 node_modules/
 
-# OS
+# ======================
+# Docker
+# ======================
+*.pid
+*.sock
+
+# ======================
+# OS / Editor
+# ======================
 .DS_Store
 Thumbs.db
-
-.env
-backup/
-logs/
-*.bson
-*.metadata.json
-__pycache__/
-venv/
+.vscode/
+.idea/
