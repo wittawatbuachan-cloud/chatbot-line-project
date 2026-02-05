@@ -8,3 +8,4 @@ transformers
 sentencepiece
 torch        # อาจหนัก ถ้าไม่ใช้ local model ให้ลบออก
 python-multipart
+pydantic-settings
