@@ -1,13 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
+
+raise RuntimeError("🔥 THIS IS THE MAIN FILE I EXPECT")
 
 app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {"status": "running"}
-
-@app.post("/callback")
-async def callback(request: Request):
-    body = await request.body()
-    print("LINE webhook received:", body)
-    return "OK"
