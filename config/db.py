@@ -1,5 +1,5 @@
 import motor.motor_asyncio
-from config.settings import settings
+from app.config import settings
 
 client = None
 db = None
