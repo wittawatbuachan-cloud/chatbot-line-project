@@ -1,14 +1,16 @@
 import motor.motor_asyncio
 from app.config import settings
+import logging
+
+logger = logging.getLogger("db")
 
 client = None
 db = None
 
+
 async def connect_db():
     global client, db
-
-    print("🔥 ENTER connect_db()")
-    print("🔥 mongo_uri =", settings.mongo_uri)
+    logger.info("🔌 Connecting to MongoDB...")
 
     client = motor.motor_asyncio.AsyncIOMotorClient(
         settings.mongo_uri,
@@ -18,10 +20,11 @@ async def connect_db():
     await client.admin.command("ping")
     db = client[settings.mongo_db]
 
-    print("✅ MongoDB connected")
+    logger.info("✅ MongoDB connected")
+
 
 async def close_db():
     global client
     if client:
         client.close()
-        print("🔌 MongoDB disconnected")
+        logger.info("🔌 MongoDB disconnected")
