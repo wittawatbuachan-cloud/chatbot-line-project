@@ -1,13 +1,9 @@
-# app/config.py
-from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     mongo_uri: str
     mongo_db: str = "chatbot_db"
-
-    line_channel_secret: str | None = None
-    line_channel_token: str | None = None
 
     model_config = ConfigDict(
         env_file=".env",
