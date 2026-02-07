@@ -6,6 +6,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_prefix = ""   # สำคัญ
-        case_sensitive = True
+        case_sensitive = False
 
 settings = Settings()

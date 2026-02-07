@@ -12,6 +12,8 @@ db = None
 async def connect_db():
     global client, db
     print("DEBUG mongo_uri =", settings.MONGO_URI)
+    print("✅ MONGO_URI =", settings.mongo_uri)
+    print("✅ MONGO_DB =", settings.mongo_db)
 
     logger.info("🔌 Connecting to MongoDB...")
 
