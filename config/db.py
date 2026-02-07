@@ -11,6 +11,8 @@ db = None
 
 async def connect_db():
     global client, db
+    print("DEBUG mongo_uri =", settings.mongo_uri)
+
     logger.info("🔌 Connecting to MongoDB...")
 
     client = motor.motor_asyncio.AsyncIOMotorClient(
