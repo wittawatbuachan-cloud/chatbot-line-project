@@ -5,6 +5,24 @@ from app.anonymizer import hash_user
 from app.line_reply import reply_message
 from config.db import db
 from config.logging_config import get_logger
+import hmac
+import hashlib
+import base64
+import os
+
+LINE_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+
+def verify_signature(body: bytes, signature: str | None):
+    if not signature:
+        return False
+
+    hash = hmac.new(
+        LINE_SECRET.encode("utf-8"),
+        body,
+        hashlib.sha256
+    ).digest()
+
+    return base64.b64encode(hash).decode() == signature
 
 router = APIRouter()
 logger = get_logger("line_webhook", "logs/line_webhook.log")
@@ -14,13 +32,13 @@ async def line_callback(
     request: Request,
     x_line_signature: str | None = Header(default=None)
 ):
-    if db is None:
-        raise HTTPException(
-            status_code=500,
-            detail="MongoDB not initialized in webhook"
-        )
+    raw_body = await request.body()
+
+    if not verify_signature(raw_body, x_line_signature):
+        raise HTTPException(status_code=403, detail="Invalid LINE signature")
 
     body = await request.json()
+
     events = body.get("events", [])
 
     logger.info("📩 LINE webhook received")
