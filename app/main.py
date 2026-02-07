@@ -15,6 +15,17 @@ async def shutdown():
     await close_db()
 
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
+@app.get("/health/db")
+async def health_db():
+    try:
+        await db.command("ping")
+        return {
+            "status": "ok",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "database": "disconnected",
+            "detail": str(e)
+        }
