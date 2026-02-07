@@ -2,6 +2,7 @@ import motor.motor_asyncio
 from app.config import settings
 import logging
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("db")
 
 client = None

@@ -2,14 +2,18 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 
-class Settings(BaseSettings):
-    mongo_uri: str
-    mongo_db: str = "chatbot_db"
+async def connect_db():
+    global client, db
+    print("DEBUG mongo_uri =", settings.MONGO_URL)
 
-    model_config = ConfigDict(
-        env_file=".env",
-        extra="ignore"
+    logger.info("🔌 Connecting to MongoDB...")
+
+    client = motor.motor_asyncio.AsyncIOMotorClient(
+        settings.mongo_uri,
+        serverSelectionTimeoutMS=5000
     )
 
+    await client.admin.command("ping")
+    db = client[settings.mongo_db]
 
-settings = Settings()
+    logger.info("✅ MongoDB connected")
