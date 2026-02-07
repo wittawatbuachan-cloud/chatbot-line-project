@@ -1,3 +1,4 @@
+# config/db.py
 import motor.motor_asyncio
 from app.config import settings
 import logging
@@ -20,6 +21,11 @@ async def connect_db():
     db = client[settings.mongo_db]
 
     logger.info("✅ MongoDB connected")
+
+def get_db():
+    if db is None:
+        raise RuntimeError("❌ MongoDB not connected")
+    return db
 
 async def close_db():
     global client

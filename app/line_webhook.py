@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Header, HTTPException
 from app.message_repo import insert_message
 from app.anonymizer import hash_user
 from app.line_reply import reply_message
-from config.db import db
+from config.db import get_db
 from config.logging_config import get_logger
 import hmac
 import hashlib
@@ -13,16 +13,16 @@ import os
 LINE_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 
 def verify_signature(body: bytes, signature: str | None):
-    if not signature:
+    if not signature or not LINE_SECRET:
         return False
 
-    hash = hmac.new(
+    hash_bytes = hmac.new(
         LINE_SECRET.encode("utf-8"),
         body,
         hashlib.sha256
     ).digest()
 
-    return base64.b64encode(hash).decode() == signature
+    return base64.b64encode(hash_bytes).decode() == signature
 
 router = APIRouter()
 logger = get_logger("line_webhook", "logs/line_webhook.log")
@@ -38,10 +38,12 @@ async def line_callback(
         raise HTTPException(status_code=403, detail="Invalid LINE signature")
 
     body = await request.json()
-
     events = body.get("events", [])
 
     logger.info("📩 LINE webhook received")
+
+    # ✅ เช็ก DB แค่ครั้งเดียว
+    get_db()
 
     for event in events:
         if event.get("type") != "message":
@@ -80,6 +82,6 @@ async def line_callback(
 
         except Exception as e:
             logger.exception("❌ Webhook error")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Webhook processing failed")
 
     return {"status": "ok"}
