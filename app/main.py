@@ -1,24 +1,23 @@
 from fastapi import FastAPI
-from config.db import connect_db, close_db, db
+import config.db as database
+from app.line_webhook import router as line_router
 
 app = FastAPI()
 
+app.include_router(line_router)
 
 @app.on_event("startup")
 async def startup():
-    print("🚀 FASTAPI STARTUP")
-    await connect_db()
-
+    await database.connect_db()
 
 @app.on_event("shutdown")
 async def shutdown():
-    await close_db()
-
+    await database.close_db()
 
 @app.get("/health/db")
 async def health_db():
     try:
-        await db.command("ping")
+        await database.db.command("ping")
         return {
             "status": "ok",
             "database": "connected"
