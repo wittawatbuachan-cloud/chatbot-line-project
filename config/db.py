@@ -2,10 +2,12 @@
 import motor.motor_asyncio
 from app.config import settings
 import logging
+from typing import Optional
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("db")
 
-client = None
+client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
 db = None
 
 async def connect_db():
@@ -17,6 +19,7 @@ async def connect_db():
         serverSelectionTimeoutMS=5000
     )
 
+    # test connection
     await client.admin.command("ping")
     db = client[settings.mongo_db]
 

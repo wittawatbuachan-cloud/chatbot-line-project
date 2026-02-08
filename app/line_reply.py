@@ -1,14 +1,18 @@
 # app/line_reply.py
 import httpx
 from app.config import settings
+from config.logging_config import get_logger
+
+logger = get_logger("line_reply", "logs/line_reply.log")
 
 async def reply_message(*, reply_token: str, text: str):
     if not settings.line_channel_token:
-        raise RuntimeError("LINE_CHANNEL_TOKEN not configured")
+        logger.error("LINE channel token not configured")
+        raise RuntimeError("LINE channel token not configured")
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.line_channel_token}",
+        "Authorization": f"Bearer {settings.line_channel_token}"
     }
 
     payload = {
@@ -18,10 +22,15 @@ async def reply_message(*, reply_token: str, text: str):
         ]
     }
 
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.post(
             "https://api.line.me/v2/bot/message/reply",
             headers=headers,
             json=payload
         )
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logger.exception("Failed to send LINE reply")
+            raise
+    logger.info("📤 LINE reply sent")
