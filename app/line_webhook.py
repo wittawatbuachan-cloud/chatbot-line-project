@@ -84,7 +84,7 @@ async def line_callback(request: Request, x_line_signature: str | None = Header(
             await insert_message(
                 user_hash=user_hash,
                 session_id=session_id,
-                role="assistant",
+                role="Bot_line",
                 content=reply_text,
                 risk_level=0,
                 source="system"

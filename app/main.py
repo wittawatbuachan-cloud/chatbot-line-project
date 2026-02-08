@@ -3,10 +3,12 @@ from fastapi import FastAPI
 from config.db import connect_db, close_db, get_db
 from app.line_webhook import router as line_router
 from config.logging_config import get_logger
+from app.admin_router import router as admin_router
 
 logger = get_logger("main", "logs/main.log")
 app = FastAPI()
 app.include_router(line_router)
+app.include_router(admin_router)
 
 @app.on_event("startup")
 async def startup():
