@@ -4,43 +4,34 @@ from app.config import settings
 import logging
 from typing import Optional
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("db")
 
 client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
 db = None
 
-
-async def connect_db_if_needed():
-    """
-    Lazy MongoDB connection (Render-safe)
-    """
+async def connect_db():
     global client, db
+    logger.info("🔌 Connecting to MongoDB...")
 
-    if db is not None:
-        return db
+    client = motor.motor_asyncio.AsyncIOMotorClient(
+        settings.mongo_uri,
+        serverSelectionTimeoutMS=5000
+    )
 
-    logger.info("🔌 Lazy connecting to MongoDB...")
+    # test connection
+    await client.admin.command("ping")
+    db = client[settings.mongo_db]
 
-    try:
-        client = motor.motor_asyncio.AsyncIOMotorClient(
-            settings.mongo_uri,
-            serverSelectionTimeoutMS=3000,
-        )
-
-        # ❗ ไม่มี ping
-        db = client[settings.mongo_db]
-
-        logger.info("✅ MongoDB client ready")
-        return db
-
-    except Exception as e:
-        logger.error("❌ MongoDB lazy connect failed")
-        logger.exception(e)
-        db = None
-        raise RuntimeError("MongoDB not available")
-
+    logger.info("✅ MongoDB connected")
 
 def get_db():
     if db is None:
         raise RuntimeError("❌ MongoDB not connected")
     return db
+
+async def close_db():
+    global client
+    if client:
+        client.close()
+        logger.info("🔌 MongoDB disconnected")

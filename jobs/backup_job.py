@@ -1,15 +1,13 @@
 import json
 import os
 from datetime import datetime
-from config.db import get_db, connect_db_if_needed 
+from config.db import get_db   
 from config.logging_config import get_logger
 
 logger = get_logger("backup_job", "logs/backup.log")
 
 BACKUP_DIR = "backups"
 
-async def backup_messages_collection():
-    db = await connect_db_if_needed()
 
 def _ensure_backup_dir():
     if not os.path.exists(BACKUP_DIR):
