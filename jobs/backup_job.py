@@ -1,8 +1,7 @@
-# jobs/backup_jobs.py
 import json
 import os
 from datetime import datetime
-from config.db import db
+from config.db import get_db  
 from config.logging_config import get_logger
 
 logger = get_logger("backup_job", "logs/backup.log")
@@ -20,8 +19,7 @@ async def backup_messages_collection():
     Backup collection: messages
     Output: backups/messages_YYYY-MM-DD.json
     """
-    if db is None:
-        raise RuntimeError("❌ MongoDB not connected")
+    db = get_db()   
 
     _ensure_backup_dir()
 
@@ -32,7 +30,7 @@ async def backup_messages_collection():
     documents = []
 
     async for doc in cursor:
-        doc["_id"] = str(doc["_id"])   # แปลง ObjectId
+        doc["_id"] = str(doc["_id"])
         documents.append(doc)
 
     with open(filename, "w", encoding="utf-8") as f:
