@@ -12,8 +12,7 @@ app.include_router(admin_router)
 
 @app.on_event("startup")
 async def startup():
-    logger.info("🚀 FASTAPI STARTUP")
-    await connect_db()
+    logger.info("🚀 FASTAPI STARTUP (no DB connection)")
 
 @app.on_event("shutdown")
 async def shutdown():

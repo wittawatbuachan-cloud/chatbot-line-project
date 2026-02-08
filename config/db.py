@@ -10,45 +10,37 @@ client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
 db = None
 
 
-async def connect_db():
+async def connect_db_if_needed():
     """
-    Connect MongoDB without crashing the app.
-    If connection fails -> log error, keep app alive.
+    Lazy MongoDB connection (Render-safe)
     """
     global client, db
 
-    logger.info("🔌 Connecting to MongoDB...")
+    if db is not None:
+        return db
+
+    logger.info("🔌 Lazy connecting to MongoDB...")
 
     try:
         client = motor.motor_asyncio.AsyncIOMotorClient(
             settings.mongo_uri,
-            serverSelectionTimeoutMS=5000,
-            tls=True,  # ชัดเจนไปเลย
+            serverSelectionTimeoutMS=3000,
         )
 
-        # test connection
-        await client.admin.command("ping")
-
+        # ❗ ไม่มี ping
         db = client[settings.mongo_db]
-        logger.info("✅ MongoDB connected")
+
+        logger.info("✅ MongoDB client ready")
+        return db
 
     except Exception as e:
+        logger.error("❌ MongoDB lazy connect failed")
+        logger.exception(e)
         db = None
-        logger.error("❌ MongoDB connection failed (app still running)")
-        logger.exception(e)   # log stack trace แต่ไม่ raise
+        raise RuntimeError("MongoDB not available")
 
 
 def get_db():
-    """
-    Use this in endpoints / jobs
-    """
     if db is None:
         raise RuntimeError("❌ MongoDB not connected")
     return db
-
-
-async def close_db():
-    global client
-    if client:
-        client.close()
-        logger.info("🔌 MongoDB disconnected")
