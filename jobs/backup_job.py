@@ -81,6 +81,7 @@ async def backup_messages_collection(triggered_by: str | None = None) -> Dict:
     await db.backups.update_one({"_id": meta_res.inserted_id}, {"$set": {"count": count}})
 
     logger.info(f"📦 Backup success: {filename} ({count} records) backup_id={backup_id}")
+    print(f"📦 Backup success: {filename} ({len(documents)} records)")
 
     # 4) return serializable metadata
     return {
