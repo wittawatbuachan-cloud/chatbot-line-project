@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from config.logging_config import get_logger
-from jobs.backup_jobs import backup_messages_collection, get_backup_metadata, fetch_backup_docs
+from jobs.backup_job import backup_messages_collection, get_backup_metadata, fetch_backup_docs
 
 logger = get_logger("admin", "logs/admin.log")
 
