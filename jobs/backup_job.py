@@ -1,3 +1,4 @@
+# jobs/backup_job.py
 import json
 import os
 from datetime import datetime
@@ -14,13 +15,15 @@ def _ensure_backup_dir():
         os.makedirs(BACKUP_DIR)
 
 
-async def backup_messages_collection():
-    """
-    Backup collection: messages
-    Output: backups/messages_YYYY-MM-DD.json
-    """
-    db = get_db()   
+def serialize(doc: dict):
+    for k, v in doc.items():
+        if isinstance(v, datetime):
+            doc[k] = v.isoformat()
+    return doc
 
+
+async def backup_messages_collection():
+    db = get_db()   
     _ensure_backup_dir()
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -31,7 +34,7 @@ async def backup_messages_collection():
 
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])
-        documents.append(doc)
+        documents.append(serialize(doc))
 
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(documents, f, ensure_ascii=False, indent=2)
@@ -40,6 +43,6 @@ async def backup_messages_collection():
 
     return {
         "file": filename,
-        "total": len(documents),
-        "collection": "messages"
+        "count": len(documents),
+        "backup_time": datetime.utcnow().isoformat()
     }
