@@ -1,4 +1,4 @@
-# app/collections.py
+# app/mongo_collections.py
 
 CONVERSATIONS = "conversations"
 MESSAGES = "messages"

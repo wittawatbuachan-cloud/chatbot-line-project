@@ -1,7 +1,7 @@
 # app/incident_repo.py
 from datetime import datetime, timezone
 from config.db import db
-from app.collections import INCIDENTS
+from app.mongo_collections import INCIDENTS
 
 async def create_incident(
     conversation_id: str,

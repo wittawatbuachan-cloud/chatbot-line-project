@@ -1,7 +1,7 @@
 # app/conversation_repo.py
 from datetime import datetime, timezone
 from config.db import db
-from app.collections import CONVERSATIONS
+from app.mongo_collections import CONVERSATIONS
 
 async def create_conversation(user_hash: str, channel: str = "LINE"):
     doc = {

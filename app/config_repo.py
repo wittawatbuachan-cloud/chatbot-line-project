@@ -1,7 +1,7 @@
 # app/config_repo.py
 from datetime import datetime, timezone
 from config.db import db
-from app.collections import CONFIGS
+from app.mongo_collections import CONFIGS
 
 async def set_config(key: str, value):
     await db[CONFIGS].update_one(

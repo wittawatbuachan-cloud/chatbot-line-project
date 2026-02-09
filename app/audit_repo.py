@@ -1,7 +1,7 @@
 # app/audit_repo.py
 from datetime import datetime, timezone
 from config.db import db
-from app.collections import AUDIT_LOGS
+from app.mongo_collections import AUDIT_LOGS
 
 async def log_action(
     action: str,
