@@ -1,7 +1,6 @@
 # app/admin_router.py
-import os
 import json
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from config.logging_config import get_logger
 from jobs.backup_job import (
@@ -17,19 +16,21 @@ router = APIRouter(
     tags=["Admin"]
 )
 
-ADMIN_KEY = os.getenv("ADMIN_KEY")
+# 🔒 ปิด admin เมื่อ deploy production จริง
+DEBUG = True   # 🔴 ถ้าจะปิด admin เปลี่ยนเป็น False
 
 
-def _verify_admin(key: str | None):
-    if not ADMIN_KEY:
-        raise HTTPException(status_code=500, detail="Admin key not configured on server")
-    if key != ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="Forbidden")
+def _verify_admin():
+    if not DEBUG:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin endpoints are disabled"
+        )
 
 
 @router.post("/backup/messages")
-async def backup_messages(x_admin_key: str | None = Header(default=None)):
-    _verify_admin(x_admin_key)
+async def backup_messages():
+    _verify_admin()
     try:
         result = await backup_messages_collection(triggered_by="admin")
         return {"status": "ok", "backup": result}
@@ -39,8 +40,8 @@ async def backup_messages(x_admin_key: str | None = Header(default=None)):
 
 
 @router.get("/backup/list")
-async def list_backups(x_admin_key: str | None = Header(default=None)):
-    _verify_admin(x_admin_key)
+async def list_backups():
+    _verify_admin()
     try:
         docs = await get_backup_metadata(limit=200)
         return {"status": "ok", "backups": docs}
@@ -50,31 +51,31 @@ async def list_backups(x_admin_key: str | None = Header(default=None)):
 
 
 @router.get("/backup/download/{backup_id}")
-async def download_backup(
-    backup_id: str,
-    x_admin_key: str | None = Header(default=None)
-):
-    _verify_admin(x_admin_key)
+async def download_backup(backup_id: str):
+    _verify_admin()
     try:
         docs = await fetch_backup_docs(backup_id)
         if not docs:
             raise HTTPException(status_code=404, detail="Backup not found")
 
         def iter_json():
-            yield "[".encode()
+            yield "[".encode("utf-8")
             first = True
             for doc in docs:
                 if not first:
-                    yield ",".encode()
+                    yield ",".encode("utf-8")
                 first = False
-                yield json.dumps(doc, ensure_ascii=False).encode()
-            yield "]".encode()
+                yield json.dumps(doc, ensure_ascii=False).encode("utf-8")
+            yield "]".encode("utf-8")
 
-        filename = f"messages_backup_{backup_id}.json"
         headers = {
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f'attachment; filename="messages_backup_{backup_id}.json"'
         }
-        return StreamingResponse(iter_json(), media_type="application/json", headers=headers)
+        return StreamingResponse(
+            iter_json(),
+            media_type="application/json",
+            headers=headers
+        )
 
     except HTTPException:
         raise

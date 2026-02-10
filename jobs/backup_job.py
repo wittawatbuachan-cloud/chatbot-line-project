@@ -1,4 +1,4 @@
-# jobs/backup_jobs.py
+# jobs/backup_job.py
 from datetime import datetime
 from typing import Any, Dict, List
 from bson import ObjectId
@@ -13,15 +13,14 @@ def _serialize(v: Any):
         return v.isoformat()
     if isinstance(v, ObjectId):
         return str(v)
+    if isinstance(v, list):
+        return [_serialize(i) for i in v]
+    if isinstance(v, dict):
+        return {k: _serialize(val) for k, val in v.items()}
     return v
 
 
 async def backup_messages_collection(triggered_by: str | None = None) -> Dict:
-    """
-    Backup messages into MongoDB only.
-    - messages_backup : actual data
-    - backups         : metadata
-    """
     db = get_db()
     backup_time = datetime.utcnow()
 
@@ -31,6 +30,7 @@ async def backup_messages_collection(triggered_by: str | None = None) -> Dict:
         "count": 0,
         "storage": "mongodb",
         "triggered_by": triggered_by,
+        "status": "completed"
     }
 
     meta_res = await db.backups.insert_one(meta)
@@ -55,7 +55,10 @@ async def backup_messages_collection(triggered_by: str | None = None) -> Dict:
         {"$set": {"count": count}}
     )
 
-    logger.info(f"📦 Backup success: messages → messages_backup ({count}) backup_id={backup_id}")
+    logger.info(
+        f"📦 Backup success: messages → messages_backup "
+        f"({count} records) backup_id={backup_id}"
+    )
 
     return {
         "backup_id": backup_id,
