@@ -50,12 +50,18 @@ async def generate_empathetic_response(user_message: str) -> str:
             return response.text
 
         except errors.ClientError as e:
-            if e.status_code == 429:
+            error_code = None
+
+            if hasattr(e, "response") and e.response is not None:
+                error_code = e.response.status_code
+
+            if error_code == 429:
                 wait = 10 * (attempt + 1)
-                logger.warning(f"Gemini rate limited. Retry in {wait}s")
+                logger.warning(f"Gemini quota exhausted. Retry in {wait}s")
                 time.sleep(wait)
             else:
                 logger.exception("Gemini API error")
                 raise
+
 
     return "I'm here with you. The system is a bit busy right now, but I'm listening."
