@@ -1,16 +1,14 @@
 # app/ai_service.py
-
 from typing import Literal
+from app.gemini_client import generate_empathetic_response
 
-MODE: Literal["mock", "gemini"] = "mock"  # เปลี่ยนทีหลังได้
+MODE: Literal["mock", "gemini"] = "gemini"
 
-def generate_reply(user_message: str) -> str:
+async def generate_reply(user_message: str) -> str:
     if MODE == "mock":
         return (
             "I hear you. It sounds like you're dealing with something difficult. "
-            "It's okay to feel this way, and you're not alone."
+            "You're not alone."
         )
 
-    # --- Gemini (STEP ถัดไป) ---
-    # from app.gemini_client import generate_empathetic_response
-    # return generate_empathetic_response(user_message)
+    return await generate_empathetic_response(user_message)

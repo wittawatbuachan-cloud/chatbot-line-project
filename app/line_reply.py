@@ -3,6 +3,7 @@ import httpx
 from app.config import settings
 from config.logging_config import get_logger
 from app.ai_service import generate_reply
+
 logger = get_logger("line_reply", "logs/line_reply.log")
 
 async def reply_message(*, reply_token: str, user_text: str):
