@@ -3,7 +3,7 @@ import asyncio
 from app.ai_service import generate_reply
 
 async def test():
-    reply = await generate_reply("I feel empty and exhausted.")
+    reply = await generate_reply("ฉันรู้สึกเหนื่อยและว่างเปล่า")
     print(reply)
 
 asyncio.run(test())
