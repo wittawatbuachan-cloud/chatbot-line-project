@@ -1,12 +1,18 @@
-# app/gemini_client.py
 import json
+import os
 from google import genai
 from config.logging_config import get_logger
 
 logger = get_logger("gemini_client", "logs/gemini.log")
 
-client = genai.Client()
+# =========================
+# Initialize Gemini Client
+# =========================
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
+# =========================
+# System Prompt
+# =========================
 SYSTEM_PROMPT = """
 You are a professional Thai mental health support assistant.
 
@@ -41,30 +47,104 @@ Return ONLY valid JSON:
 }
 """
 
+# =========================
+# Static Few-shot Examples
+# =========================
+FEW_SHOT_EXAMPLES = """
+Example 1:
+User message:
+I found some of my kids artwork from when they were little and it made me miss having them around all the time.
 
+Expected JSON:
+{
+  "emotion": "nostalgia",
+  "risk_level": "low",
+  "reply": "Looking at those old artworks must have brought back so many meaningful memories. Missing those everyday moments shows how deeply you care about them."
+}
+
+Example 2:
+User message:
+I feel like nothing I do matters anymore.
+
+Expected JSON:
+{
+  "emotion": "hopelessness",
+  "risk_level": "medium",
+  "reply": "I'm really sorry you're feeling this way. When things start to feel meaningless, it can feel heavy and exhausting. Would you like to tell me what's been weighing on you lately?"
+}
+
+Example 3:
+User message:
+I used to get excited over getting girls' numbers... nowadays I get excited over free cash and paying off credit card bills.
+
+Expected JSON:
+{
+  "emotion": "excited",
+  "risk_level": "low",
+  "reply": "It sounds like your priorities have really evolved over time. Finding excitement in financial progress can actually feel empowering."
+}
+
+Example 4:
+User message:
+ฉันอยากตาย
+
+Expected JSON:
+{
+  "emotion": "despair",
+  "risk_level": "high",
+  "reply": "ฉันเสียใจมากที่ได้ยินว่าคุณรู้สึกแบบนี้ คุณไม่ได้อยู่คนเดียวนะ หากคุณรู้สึกไม่ปลอดภัย โปรดติดต่อสายด่วนสุขภาพจิต 1323 หรือ 1669 ทันที"
+}
+"""
+
+# =========================
+# Main Function
+# =========================
 async def generate_empathetic_response(user_message: str):
 
     full_prompt = f"""
 {SYSTEM_PROMPT}
 
+{FEW_SHOT_EXAMPLES}
+
+Now analyze this:
+
 User message:
 {user_message}
+
+Return JSON:
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=full_prompt,
-        config={"response_mime_type": "application/json","temperature": 0.7}
-    )
-
-    text = response.text.strip()
-    logger.info(f"RAW GEMINI: {text}")
-
     try:
-        return json.loads(text)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=full_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "temperature": 0.7
+            }
+        )
+
+        raw_text = response.text.strip()
+        logger.info(f"RAW GEMINI: {raw_text}")
+
+        result = json.loads(raw_text)
+
+        return result
+
     except json.JSONDecodeError:
+        logger.error("⚠️ Gemini returned invalid JSON")
+
         return {
             "emotion": "unknown",
             "risk_level": "unknown",
-            "reply": text
+            "reply": raw_text if "raw_text" in locals() else "I'm here with you."
+        }
+
+    except Exception as e:
+        logger.exception("🔥 Gemini error")
+
+        return {
+            "emotion": "error",
+            "risk_level": "unknown",
+            "reply": "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"
         }

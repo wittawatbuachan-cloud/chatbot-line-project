@@ -1,4 +1,5 @@
 # app/line_reply.py
+
 import httpx
 from app.config import settings
 from config.logging_config import get_logger
@@ -19,16 +20,24 @@ async def reply_message(*, reply_token: str, text: str):
     payload = {
         "replyToken": reply_token,
         "messages": [
-            {"type": "text", "text": text}
+            {
+                "type": "text",
+                "text": text
+            }
         ]
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.post(
+        response = await client.post(
             "https://api.line.me/v2/bot/message/reply",
             headers=headers,
             json=payload
         )
-        r.raise_for_status()
 
-    logger.info("📤 LINE reply sent")
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            logger.exception("❌ LINE API error")
+            raise
+
+    logger.info("📤 LINE reply sent successfully")
