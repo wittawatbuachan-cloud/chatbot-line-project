@@ -2,12 +2,14 @@
 import httpx
 from app.config import settings
 from config.logging_config import get_logger
-from app.ai_service import generate_reply
 
 logger = get_logger("line_reply", "logs/line_reply.log")
 
-async def reply_message(*, reply_token: str, user_text: str):
-    ai_text = generate_reply(user_text)
+
+async def reply_message(*, reply_token: str, text: str):
+
+    if not settings.line_channel_token:
+        raise RuntimeError("LINE channel token not configured")
 
     headers = {
         "Content-Type": "application/json",
@@ -17,7 +19,7 @@ async def reply_message(*, reply_token: str, user_text: str):
     payload = {
         "replyToken": reply_token,
         "messages": [
-            {"type": "text", "text": ai_text}
+            {"type": "text", "text": text}
         ]
     }
 
@@ -27,9 +29,6 @@ async def reply_message(*, reply_token: str, user_text: str):
             headers=headers,
             json=payload
         )
-        try:
-            r.raise_for_status()
-        except Exception as e:
-            logger.exception("Failed to send LINE reply")
-            raise
+        r.raise_for_status()
+
     logger.info("📤 LINE reply sent")
