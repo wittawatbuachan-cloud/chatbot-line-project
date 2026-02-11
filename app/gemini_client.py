@@ -1,67 +1,75 @@
 # app/gemini_client.py
-import os
-import time
+import json
 from google import genai
 from google.genai import errors
 from config.logging_config import get_logger
 
 logger = get_logger("gemini_client", "logs/gemini.log")
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.Client()
 
 SYSTEM_PROMPT = """
-คุณคือผู้ช่วย AI ที่มีความเข้าใจทางอารมณ์ (Empathetic AI)
+You are a mental health support AI.
 
-หน้าที่หลักของคุณคือ
-- เข้าใจความรู้สึกของผู้ใช้
-- แสดงความเห็นอกเห็นใจ
-- ตอบด้วยถ้อยคำสุภาพ อ่อนโยน และเป็นมิตร
+Your job:
+1. Detect user's dominant emotion.
+2. Assess risk level:
+   - low = normal sadness, stress
+   - medium = hopelessness, worthlessness
+   - high = self-harm or suicide related
+3. Respond empathetically and supportively.
 
-แนวทางการตอบ:
-- กล่าวถึงอารมณ์ของผู้ใช้โดยตรง
-- ไม่ตัดสิน ไม่ตำหนิ
-- ไม่ให้คำแนะนำรุนแรงหรือเร่งรีบ
-- ใช้ภาษาที่เป็นธรรมชาติ เหมือนมนุษย์พูดกับมนุษย์
-- หากเหมาะสม ให้ถามคำถามปลายเปิดอย่างนุ่มนวลเพียง 1 คำถาม
+IMPORTANT:
+Return ONLY valid JSON format like this:
 
-ข้อจำกัด:
-- คุณไม่ใช่แพทย์หรือนักจิตวิทยา
-- ห้ามวินิจฉัยหรือให้คำแนะนำทางการแพทย์
-- เน้นการรับฟังและสนับสนุนทางอารมณ์เป็นหลัก
+{
+  "emotion": "sadness",
+  "risk_level": "low",
+  "reply": "empathetic response here"
+}
 
-**ตอบกลับเป็นภาษาไทยเท่านั้น**
+No extra text.
 """
 
-async def generate_empathetic_response(user_message: str) -> str:
+
+async def generate_empathetic_response(user_message: str):
+
     full_prompt = f"""
 {SYSTEM_PROMPT}
 
-ผู้ใช้พิมพ์ข้อความดังนี้ (ภาษาไทย):
+User message:
 {user_message}
-
-กรุณาตอบกลับด้วยภาษาไทยอย่างสุภาพและแสดงความเข้าใจทางอารมณ์:
 """
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=full_prompt
-            )
-            return response.text
 
-        except errors.ClientError as e:
-            error_code = None
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=full_prompt,
+            config={
+                "response_mime_type": "application/json"
+            }
+        )
 
-            if hasattr(e, "response") and e.response is not None:
-                error_code = e.response.status_code
+        text = response.text.strip()
+        logger.info(f"RAW GEMINI: {text}")
 
-            if error_code == 429:
-                wait = 10 * (attempt + 1)
-                logger.warning(f"Gemini quota exhausted. Retry in {wait}s")
-                time.sleep(wait)
-            else:
-                logger.exception("Gemini API error")
-                raise
+        result = json.loads(text)
+        return result
 
+    except json.JSONDecodeError:
+        logger.warning("Gemini did not return valid JSON")
 
-    return "I'm here with you. The system is a bit busy right now, but I'm listening."
+        return {
+            "emotion": "unknown",
+            "risk_level": "unknown",
+            "reply": text if 'text' in locals() else "I'm here with you."
+        }
+
+    except errors.ClientError as e:
+        logger.error(f"Gemini API error: {e}")
+
+        return {
+            "emotion": "system_error",
+            "risk_level": "unknown",
+            "reply": "The system is temporarily busy. I'm still here with you."
+        }
