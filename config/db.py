@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("db")
 
-client: AsyncIOMotorClient | None = None
+client = None
 db = None
 
 
@@ -15,11 +15,10 @@ async def connect_db():
     logger.info("🔌 Connecting to MongoDB...")
 
     client = AsyncIOMotorClient(
-        settings.mongodb_uri,
+        settings.mongo_uri,  # ✅ แก้ตรงนี้
         serverSelectionTimeoutMS=5000
     )
 
-    # test connection
     await client.admin.command("ping")
 
     db = client[settings.mongo_db]
