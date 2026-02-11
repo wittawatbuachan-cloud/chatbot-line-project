@@ -1,22 +1,49 @@
 # app/risk_detector.py
-# Rule-based risk detector (simple and auditable)
-from typing import Dict, List
 
-RISK_KEYWORDS = {
-    3: ["อยากตาย", "ฆ่าตัวตาย", "ไม่อยากมีชีวิตอยู่", "จบชีวิต", "จะฆ่า", "คิดจะตาย"],
-    2: ["สิ้นหวัง", "ไม่เหลืออะไร", "หมดความหวัง", "ไม่ไหวแล้ว", "ทนไม่ไหว"],
-    1: ["ท้อแท้", "เศร้า", "เครียด", "เหนื่อยใจ", "แย่มาก"]
-}
+from app.preprocessing import tokenize_text
 
-def detect_risk(text: str) -> Dict[str, object]:
-    if not text:
-        return {"risk_level": 0, "keywords": []}
+HIGH_RISK_PHRASES = [
+    "อยากตาย",
+    "ฆ่าตัวตาย",
+    "ไม่อยากมีชีวิตอยู่",
+    "จบชีวิต",
+    "ตายไปเลย"
+]
 
-    t = text.lower()
-    found: List[str] = []
-    for level in (3, 2, 1):
-        hits = [kw for kw in RISK_KEYWORDS[level] if kw in t]
-        if hits:
-            # return highest matched level
-            return {"risk_level": level, "keywords": hits}
-    return {"risk_level": 0, "keywords": []}
+MEDIUM_RISK_WORDS = [
+    "สิ้นหวัง",
+    "หมดหวัง",
+    "ไม่มีค่า",
+    "ไม่ไหวแล้ว",
+    "เหนื่อยมาก"
+]
+
+def detect_risk_local(text: str):
+    text_lower = text.lower()
+
+    # 🔴 ตรวจ phrase ตรง ๆ ก่อน
+    for phrase in HIGH_RISK_PHRASES:
+        if phrase in text_lower:
+            return {
+                "risk_level": 3,
+                "keywords": [phrase]
+            }
+
+    tokens = tokenize_text(text_lower)
+
+    # 🟠 medium
+    found_keywords = []
+    for word in MEDIUM_RISK_WORDS:
+        if word in tokens:
+            found_keywords.append(word)
+
+    if found_keywords:
+        return {
+            "risk_level": 2,
+            "keywords": found_keywords
+        }
+
+    return {
+        "risk_level": 0,
+        "keywords": []
+    }
