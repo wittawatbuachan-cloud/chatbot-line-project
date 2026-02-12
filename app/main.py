@@ -1,5 +1,5 @@
 # app/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI,  Request
 from config.db import connect_db, close_db, get_db
 from app.line_webhook import router as line_router
 from app.admin_router import router as admin_router
@@ -9,10 +9,19 @@ from app.admin_configs import router as admin_configs_router
 from app.admin_metrics import router as admin_metrics_router
 from app.admin_dashboard import router as admin_dashboard_router
 from app.admin_audit import router as admin_audit_router
+import time
+
+async def add_latency_metrics(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
 
 logger = get_logger("main", "logs/main.log")
 app = FastAPI()
 
+app.middleware("http")(add_latency_metrics)
 app.include_router(admin_audit_router)
 app.include_router(admin_dashboard_router)
 app.include_router(admin_metrics_router)

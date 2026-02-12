@@ -1,9 +1,40 @@
 # app/config_repo.py
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from config.db import db
 from app.mongo_collections import CONFIGS
 from config.logging_config import get_logger
+
+def get_system_config():
+    config = db.system_configs.find_one({"_id": "main"})
+    if not config:
+        # default config ถ้ายังไม่มีใน DB
+        config = {
+            "_id": "main",
+            "threshold_high": 3,
+            "threshold_medium": 2,
+            "emergency_numbers": [],
+            "prompt_template": "",
+            "canned_responses": {},
+            "updated_at": datetime.now(UTC)
+        }
+        db.system_configs.insert_one(config)
+    return config
+
+
+def update_system_config(new_config: dict):
+    db.system_configs.update_one(
+        {"_id": "main"},
+        {
+            "$set": {
+                **new_config,
+                "updated_at": datetime.now(UTC)
+            }
+        },
+        upsert=True
+    )
+
+    return get_system_config()
 
 logger = get_logger("config_repo", "logs/config_repo.log")
 
@@ -38,7 +69,7 @@ DEFAULT_CONFIG = {
             "กรุณาปรึกษาผู้เชี่ยวชาญโดยตรง"
         )
     },
-    "updated_at": datetime.utcnow()
+    "updated_at": datetime.now(UTC)
 }
 
 # ✅ ดึง config และสร้าง default ถ้าไม่มี

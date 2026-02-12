@@ -1,6 +1,6 @@
 # app/message_repo.py
 from config.db import get_db
-from datetime import datetime
+from datetime import datetime, timezone
 from config.logging_config import get_logger
 
 logger = get_logger("message_repo", "logs/message_repo.log")
@@ -10,13 +10,15 @@ async def insert_message(
     *,
     session_id: str,
     user_hash: str,
+    role: str,
     content: str,
     risk_score: float = 0.0,
     keywords: list[str] | None = None
 ):
-
+    db = get_db()
     doc = {
         "user_hash": user_hash,
+        "role": role,
         "session_id": session_id,
         "trigger_ts": datetime.now(timezone.utc),
         "risk_score": risk_score,
@@ -30,8 +32,9 @@ async def insert_message(
         "content": content
     }
 
-    await db.messages.insert_one(doc)
+    result = await db.messages.insert_one(doc)
 
     logger.info(
-        f"💾 Insert message role={role} session={session_id} risk={risk_level}"
+        f"💾 Insert message role={role} session={session_id} risk={risk_score}"
     )
+    return str(result.inserted_id)

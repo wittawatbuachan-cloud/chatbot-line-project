@@ -4,14 +4,15 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 import os
 import logging
+from pymongo import MongoClient
 
 logger = logging.getLogger("db")
 
 # โหลด .env (สำหรับ local)
 load_dotenv()
 
-client: AsyncIOMotorClient | None = None
-db = None
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["chatbot_db"]
 
 
 def get_mongo_settings():

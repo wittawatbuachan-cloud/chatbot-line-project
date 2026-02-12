@@ -11,9 +11,7 @@ logger = get_logger("admin_configs", "logs/admin_configs.log")
 
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 
-
-def verify_admin(x_admin_key: str | None = Header(default=None)):
-
+def verify_admin(x_admin_key: str = Header(...)):
     if not ADMIN_KEY:
         logger.error("ADMIN_KEY not set in environment")
         raise HTTPException(status_code=500, detail="Admin authentication not configured")
@@ -22,12 +20,12 @@ def verify_admin(x_admin_key: str | None = Header(default=None)):
         logger.warning("Unauthorized admin access attempt")
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    return x_admin_key  # 🔥 return actor
+    return x_admin_key
 
 
 @router.get("/configs")
 async def read_configs(actor: str = Depends(verify_admin)):
-    config = await get_system_config()
+    config = get_system_config()
     return config
 
 
@@ -53,9 +51,9 @@ async def write_configs(payload: dict, actor: str = Depends(verify_admin)):
             detail="No valid config fields provided"
         )
 
-    updated_config = await update_system_config(filtered_payload)
+    updated_config = update_system_config(filtered_payload)
 
-    # ✅ บันทึก audit
+    # บันทึก audit
     await log_action(
         action="update_config",
         actor=actor,

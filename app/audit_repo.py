@@ -1,7 +1,7 @@
 # app/audit_repo.py
 
-from datetime import datetime
-from config.db import get_db
+from datetime import datetime, UTC
+from config.db import db, get_db
 from config.logging_config import get_logger
 
 logger = get_logger("audit_repo", "logs/audit_repo.log")
@@ -57,3 +57,24 @@ async def get_audit_logs(
         results.append(doc)
 
     return results
+
+
+async def log_action(
+    action: str,
+    actor: str,
+    detail: dict,
+    target_type: str,
+    target_id: str
+):
+    audit_record = {
+        "action": action,
+        "actor": actor,
+        "detail": detail,
+        "target_type": target_type,
+        "target_id": target_id,
+        "timestamp": datetime.now(UTC)
+    }
+
+    db.audit_logs.insert_one(audit_record)
+
+    return audit_record
