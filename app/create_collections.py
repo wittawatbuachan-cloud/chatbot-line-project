@@ -60,11 +60,24 @@ async def create_indexes():
         await db.messages.create_index("created_at")
 
         # TTL (auto delete)
+        # ดู index ที่มีอยู่
+        existing_indexes = await db.messages.index_information()
+
+        if "created_at_1" in existing_indexes:
+            print("⚠ Found existing created_at index. Dropping...")
+            await db.messages.drop_index("created_at_1")
+
+        if "ttl_created_at" in existing_indexes:
+            print("⚠ Found existing ttl_created_at index. Dropping...")
+            await db.messages.drop_index("ttl_created_at")
+
         await db.messages.create_index(
             "created_at",
             expireAfterSeconds=DATA_RETENTION_DAYS * 24 * 60 * 60,
             name="ttl_created_at"
         )
+
+        print("✅ TTL index created successfully")
 
         # ==================================================
         # INCIDENTS
