@@ -1,5 +1,5 @@
 # app/admin_dashboard.py
-
+from app.audit_repo import log_action
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from config.db import get_db
 from config.logging_config import get_logger
@@ -73,7 +73,7 @@ async def handle_incident(
     action: str,  # in_progress / closed
     admin_name: str,
     note: Optional[str] = None,
-    auth: bool = Depends(verify_admin)
+    actor: str = Depends(verify_admin)
 ):
 
     if action not in ["in_progress", "closed"]:
@@ -95,6 +95,19 @@ async def handle_incident(
 
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Incident not found")
+
+    # ✅ บันทึก audit
+    await log_action(
+        action="handle_incident",
+        actor=actor,
+        detail={
+            "incident_id": incident_id,
+            "new_status": action,
+            "note": note
+        },
+        target_type="incident",
+        target_id=incident_id
+    )
 
     logger.info(f"Incident {incident_id} updated to {action}")
 

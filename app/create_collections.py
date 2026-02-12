@@ -8,6 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("MONGO_DB", "chatbot_db")
 
+# จำนวนวันเก็บข้อความ (ถ้าจะเปิด TTL)
+DATA_RETENTION_DAYS = int(os.getenv("DATA_RETENTION_DAYS", "365"))
+
 
 async def create_indexes():
     print("MONGO_URI =", MONGO_URI)
@@ -18,29 +21,51 @@ async def create_indexes():
     client = AsyncIOMotorClient(MONGO_URI)
     db = client[DB_NAME]
 
-    # ===== METRICS =====
+    # ==================================================
+    # METRICS
+    # ==================================================
     await db.metrics.create_index("created_at")
     await db.metrics.create_index("risk_level")
     await db.metrics.create_index("success")
 
-    # ===== CONFIGS =====
+    # ==================================================
+    # CONFIGS
+    # ==================================================
     await db.configs.create_index("updated_at")
 
-    # ===== CONVERSATIONS =====
+    # ==================================================
+    # CONVERSATIONS
+    # ==================================================
     await db.conversations.create_index("user_hash")
+    await db.conversations.create_index("session_id", unique=True)
     await db.conversations.create_index("created_at")
 
-    # ===== MESSAGES =====
+    # ==================================================
+    # MESSAGES (ถ้าใช้ collection แยก)
+    # ==================================================
     await db.messages.create_index("conversation_id")
     await db.messages.create_index("created_at")
 
-    # ===== INCIDENTS =====
-    await db.incidents.create_index("user_hash")
-    await db.incidents.create_index("risk_level")
-    await db.incidents.create_index("created_at")
+    # 🔥 TTL auto delete (optional)
+    await db.messages.create_index(
+        "created_at",
+        expireAfterSeconds=DATA_RETENTION_DAYS * 24 * 60 * 60
+    )
 
-    # ===== AUDIT LOGS =====
+    # ==================================================
+    # INCIDENTS
+    # ==================================================
+    await db.incidents.create_index("user_hash")
+    await db.incidents.create_index("risk_score")
+    await db.incidents.create_index("status")
+    await db.incidents.create_index("trigger_ts")
+
+    # ==================================================
+    # AUDIT LOGS
+    # ==================================================
     await db.audit_logs.create_index("created_at")
+    await db.audit_logs.create_index("actor")
+    await db.audit_logs.create_index("action")
 
     print("✅ All collections & indexes created successfully")
 

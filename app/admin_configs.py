@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from app.configs_repo import get_system_config, update_system_config
+from app.audit_repo import log_action
 from config.logging_config import get_logger
 import os
 
@@ -11,7 +12,6 @@ logger = get_logger("admin_configs", "logs/admin_configs.log")
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 
 
-# 🔐 Admin Authentication
 def verify_admin(x_admin_key: str | None = Header(default=None)):
 
     if not ADMIN_KEY:
@@ -22,19 +22,17 @@ def verify_admin(x_admin_key: str | None = Header(default=None)):
         logger.warning("Unauthorized admin access attempt")
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    return True
+    return x_admin_key  # 🔥 return actor
 
 
-# 🔎 GET current config
 @router.get("/configs")
-async def read_configs(auth: bool = Depends(verify_admin)):
+async def read_configs(actor: str = Depends(verify_admin)):
     config = await get_system_config()
     return config
 
 
-# ✏ UPDATE config
 @router.post("/configs")
-async def write_configs(payload: dict, auth: bool = Depends(verify_admin)):
+async def write_configs(payload: dict, actor: str = Depends(verify_admin)):
 
     allowed_fields = {
         "threshold_high",
@@ -56,6 +54,15 @@ async def write_configs(payload: dict, auth: bool = Depends(verify_admin)):
         )
 
     updated_config = await update_system_config(filtered_payload)
+
+    # ✅ บันทึก audit
+    await log_action(
+        action="update_config",
+        actor=actor,
+        detail={"updated_fields": list(filtered_payload.keys())},
+        target_type="config",
+        target_id="system"
+    )
 
     return {
         "status": "updated",
