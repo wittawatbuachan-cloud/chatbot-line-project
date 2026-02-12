@@ -8,26 +8,26 @@ logger = get_logger("message_repo", "logs/message_repo.log")
 
 async def insert_message(
     *,
-    user_hash: str,
     session_id: str,
-    role: str,
+    user_hash: str,
     content: str,
-    emotion: str | None = None,
-    risk_level: str | None = None,
-    source: str = "system"
+    risk_score: float = 0.0,
+    keywords: list[str] | None = None
 ):
-
-    db = get_db()
 
     doc = {
         "user_hash": user_hash,
         "session_id": session_id,
-        "role": role,
-        "content": content,
-        "emotion": emotion,
-        "risk_level": risk_level,
-        "source": source,
-        "created_at": datetime.utcnow()
+        "trigger_ts": datetime.now(timezone.utc),
+        "risk_score": risk_score,
+        "keywords": keywords or [],
+        "notified_user": False,
+        "notified_admin": False,
+        "notified_ts": None,
+        "status": "open",
+        "handled_by": None,
+        "notes": "",
+        "content": content
     }
 
     await db.messages.insert_one(doc)

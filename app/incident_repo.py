@@ -3,93 +3,67 @@
 from datetime import datetime, timezone
 import os
 import httpx
+from bson import ObjectId
 from config.db import db
 from config.logging_config import get_logger
 from app.mongo_collections import INCIDENTS
 
 logger = get_logger("incident_repo", "logs/incident.log")
-
 ADMIN_WEBHOOK_URL = os.getenv("ADMIN_WEBHOOK_URL")
 
 
 # ==============================
-# 1️⃣ CREATE INCIDENT
+# CREATE INCIDENT
 # ==============================
 async def create_incident(
-    conversation_id: str,
+    session_id: str,
     user_hash: str,
     risk_score: float,
-    keywords: list[str],
-    content: str
+    keywords: list[str]
 ):
+
     doc = {
-        "conversation_id": conversation_id,
         "user_hash": user_hash,
+        "session_id": session_id,
+        "trigger_ts": datetime.now(timezone.utc),
         "risk_score": float(risk_score),
         "keywords": keywords,
-        "content": content,
-        "status": "open",
-        "notified": False,
-        "created_at": datetime.now(timezone.utc),
-        "notified_at": None,
-        "handled_at": None,
-        "note": ""
+        "notified_user": False,
+        "notified_admin": False,
+        "notified_ts": None,
+        "status": "open",  # open / in_progress / closed
+        "handled_by": None,
+        "notes": ""
     }
 
     result = await db[INCIDENTS].insert_one(doc)
-
-    incident_id = str(result.inserted_id)
-    logger.warning(f"🚨 Incident created: {incident_id}")
-
-    return incident_id
+    return str(result.inserted_id)
 
 
 # ==============================
-# 2️⃣ NOTIFY ADMIN (Webhook)
+# NOTIFY ADMIN
 # ==============================
-async def notify_admin(incident_id: str, message: str):
+async def notify_admin(incident_id: str):
 
     if not ADMIN_WEBHOOK_URL:
-        logger.warning("⚠️ ADMIN_WEBHOOK_URL not configured")
+        logger.warning("ADMIN_WEBHOOK_URL not set")
         return
-
-    payload = {
-        "incident_id": incident_id,
-        "alert": message
-    }
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.post(ADMIN_WEBHOOK_URL, json=payload)
-            r.raise_for_status()
+            await client.post(ADMIN_WEBHOOK_URL, json={
+                "incident_id": incident_id
+            })
 
-        # update incident after successful notify
         await db[INCIDENTS].update_one(
-            {"_id": db.codec_options.document_class(incident_id) if False else {"$exists": True}}
+            {"_id": ObjectId(incident_id)},
+            {
+                "$set": {
+                    "notified_admin": True,
+                    "notified_ts": datetime.now(timezone.utc)
+                }
+            }
         )
 
     except Exception:
-        logger.exception("❌ Failed to notify admin")
-        return
-
-    # mark as notified
-    await db[INCIDENTS].update_one(
-        {"_id": result_id_converter(incident_id)},
-        {
-            "$set": {
-                "notified": True,
-                "notified_at": datetime.now(timezone.utc)
-            }
-        }
-    )
-
-    logger.warning("📢 Admin notified successfully")
-
-
-# ==============================
-# 3️⃣ HELPER: convert string -> ObjectId
-# ==============================
-from bson import ObjectId
-
-def result_id_converter(id_str: str):
-    return ObjectId(id_str)
+        logger.exception("Failed to notify admin")
