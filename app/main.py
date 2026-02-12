@@ -6,10 +6,12 @@ from app.admin_router import router as admin_router
 from config.logging_config import get_logger
 from app.gemini_connection_check import check_gemini_connection
 from app.admin_configs import router as admin_configs_router
+from app.admin_metrics import router as admin_metrics_router
 
 logger = get_logger("main", "logs/main.log")
 app = FastAPI()
 
+app.include_router(admin_metrics_router)
 app.include_router(admin_configs_router)
 app.include_router(line_router)
 app.include_router(admin_router)   
