@@ -45,7 +45,6 @@ async def create_collections():
         await db.create_collection("configs")
         print("✅ Created configs")
 
-    await db.configs.create_index("_id", unique=True)
 
     # create default system config if not exists
     system_config = await db.configs.find_one({"_id": "system"})
