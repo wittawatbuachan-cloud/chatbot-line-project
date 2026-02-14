@@ -135,7 +135,7 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
 
                 # create incident record
                 await create_incident(
-                    conversation_id=session_id,
+                    session_id=session_id,
                     user_hash=user_hash,
                     risk_score=3,
                     keywords=local_risk.get("keywords", [])
