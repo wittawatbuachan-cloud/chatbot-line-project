@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     mongo_db: str = "chatbot_db"
 
     # LINE
-    line_channel_secret: str | None = None
-    line_channel_token: str | None = None
+    LINE_CHANNEL_SECRET: str | None = None
+    LINE_CHANNEL_TOKEN: str | None = None
 
     model_config = ConfigDict(
         env_file=".env",
