@@ -10,7 +10,7 @@ pymongo==4.6.2
 pydantic-settings==2.2.1
 python-multipart==0.0.9
 google-genai==0.3.0
-PyThaiNLP==3.1.1
+pythainlp==3.1.0
 regex>=2022.10.31
 backoff==2.2.1
 cryptography==41.0.0
