@@ -36,51 +36,47 @@ def verify_signature(body: bytes, signature: str | None) -> bool:
     return computed == signature
 
 async def process_message_pipeline(user_hash: str, session_id: str, reply_token: str, user_text: str):
-    """
-    Background worker pipeline:
-    - preprocess (tokenize/clean) if you have preprocessing module
-    - call AI
-    - create incident if needed
-    - save assistant message
-    - reply to LINE
-    """
+
     logger.info("🚀 Worker started for session=%s", session_id)
+
     try:
         cleaned_text = user_text
 
-        ai_result = {}
         try:
             ai_result = await generate_reply(user_hash, session_id, cleaned_text)
         except Exception:
             logger.exception("AI call failed for session=%s", session_id)
+            ai_result = {}
 
-            if not isinstance(ai_result, dict):
-                ai_result = {}
+        if not isinstance(ai_result, dict):
+            ai_result = {}
 
-            emotion = ai_result.get("emotion", "unknown")
-            risk_level = ai_result.get("risk_level", "unknown")
-            reply_text = ai_result.get(
-                "reply",
-                "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"
-            )
+        emotion = ai_result.get("emotion", "unknown")
+        risk_level = ai_result.get("risk_level", "unknown")
+        reply_text = ai_result.get(
+            "reply",
+            "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"
+        )
 
-            await insert_message(
-                session_id=session_id,
-                user_hash=user_hash,
-                role="assistant",
-                content=reply_text,
-                risk_score=0.0,
-                keywords=[emotion] if emotion != "unknown" else []
-            )
+        # ✅ บันทึกข้อความ assistant
+        await insert_message(
+            session_id=session_id,
+            user_hash=user_hash,
+            role="assistant",
+            content=reply_text,
+            risk_score=0.0,
+            keywords=[emotion] if emotion != "unknown" else []
+        )
 
-            await reply_message(reply_token=reply_token, text=reply_text)
+        # ✅ ส่งกลับ LINE (ตรงนี้สำคัญมาก)
+        await reply_message(reply_token=reply_token, text=reply_text)
 
-            logger.info(
-                "✅ Worker finished session=%s emotion=%s ai_risk=%s",
-                session_id,
-                emotion,
-                risk_level
-            )
+        logger.info(
+            "✅ Worker finished session=%s emotion=%s ai_risk=%s",
+            session_id,
+            emotion,
+            risk_level
+        )
 
     except Exception:
         logger.exception("❌ Worker pipeline error for session=%s", session_id)
