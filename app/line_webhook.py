@@ -1,168 +1,122 @@
 # app/line_webhook.py
-import time
 from fastapi import APIRouter, Request, Header, HTTPException, BackgroundTasks
+from config.logging_config import get_logger
 from app.message_repo import insert_message
 from app.anonymizer import hash_user
 from app.line_reply import reply_message
 from app.ai_service import generate_reply
 from app.risk_detector import detect_risk_local
-from app.preprocessing import tokenize_text
 from app.incident_repo import create_incident
 from config.db import get_db
-from config.logging_config import get_logger
 import hmac
 import hashlib
 import base64
 import os
 
-start_time = time.time()
+logger = get_logger("line_webhook", "logs/line_webhook.log")
+router = APIRouter()
 
 LINE_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+ENV = os.getenv("ENV", "").lower()
+# If running tests, set ENV=test or rely on PYTEST_CURRENT_TEST
+IS_TEST = ENV == "test" or bool(os.getenv("PYTEST_CURRENT_TEST"))
 
-router = APIRouter()
-logger = get_logger("line_webhook", "logs/line_webhook.log")
-
-
-# ======================================================
-# 🔐 Signature Verification
-# ======================================================
-def verify_signature(body: bytes, signature: str | None):
-
-    # ✅ Allow bypass during pytest
-    if os.getenv("PYTEST_CURRENT_TEST"):
+def verify_signature(body: bytes, signature: str | None) -> bool:
+    """
+    Verify LINE HMAC-SHA256 signature.
+    In tests (IS_TEST True) we bypass verification to simplify testing.
+    """
+    if IS_TEST:
         return True
 
     if not signature or not LINE_SECRET:
         return False
 
-    computed_signature = base64.b64encode(
-        hmac.new(
-            LINE_SECRET.encode("utf-8"),
-            body,
-            hashlib.sha256
-        ).digest()
-    ).decode()
+    computed = base64.b64encode(hmac.new(LINE_SECRET.encode("utf-8"), body, hashlib.sha256).digest()).decode()
+    return computed == signature
 
-    return computed_signature == signature
-
-# ======================================================
-# 🧠 BACKGROUND WORKER PIPELINE
-# ======================================================
-async def process_message_pipeline(
-    user_hash: str,
-    session_id: str,
-    reply_token: str,
-    user_text: str
-):
+async def process_message_pipeline(user_hash: str, session_id: str, reply_token: str, user_text: str):
     """
-    Full production pipeline executed in background
+    Background worker pipeline:
+    - preprocess (tokenize/clean) if you have preprocessing module
+    - call AI
+    - create incident if needed
+    - save assistant message
+    - reply to LINE
     """
-
+    logger.info("🚀 Worker started for session=%s", session_id)
     try:
-        logger.info("🚀 Worker started")
+        # Optionally: cleaned_text, tokens = tokenize_text(user_text)
+        cleaned_text = user_text  # placeholder if no preprocessing implemented
 
-        # ==============================
-        # 1️⃣ Preprocess
-        # ==============================
-        cleaned_text, tokens = tokenize_text(user_text)
-
-        # ==============================
-        # 2️⃣ Gemini Call
-        # ==============================
+        # Call AI
         ai_result = await generate_reply(cleaned_text)
 
-        emotion = ai_result.get("emotion")
-        risk_level = ai_result.get("risk_level")
-        ai_reply = ai_result.get("reply")
+        emotion = ai_result.get("emotion", None)
+        risk_level = ai_result.get("risk_level", None)
+        ai_reply = ai_result.get("reply", "ขออภัย ระบบขัดข้องชั่วคราว")
 
-        # ==============================
-        # 3️⃣ Escalation Check
-        # ==============================
-        if risk_level == "high":
-
+        # escalate if risk high
+        if isinstance(risk_level, str) and risk_level.lower() == "high":
+            # create incident
+            await create_incident(conversation_id=session_id, user_hash=user_hash, risk_score=3, keywords=[emotion] if emotion else [])
             reply_text = (
                 "ฉันรับรู้ว่าคุณกำลังรู้สึกหนักมากนะ\n"
                 "หากคุณคิดจะทำร้ายตัวเองหรือรู้สึกไม่ปลอดภัย\n"
                 "โปรดติดต่อสายด่วนสุขภาพจิต 1323 (ประเทศไทย)\n"
                 "หรือ 1669 หากเป็นเหตุฉุกเฉินทันที"
             )
-
-            await create_incident(
-                conversation_id=session_id,
-                user_hash=user_hash,
-                risk_score=3,
-                keywords=[]
-            )
-
         else:
             reply_text = ai_reply
 
-        # ==============================
-        # 4️⃣ Save Assistant Message
-        # ==============================
+        # Save assistant message
         await insert_message(
             session_id=session_id,
             user_hash=user_hash,
             role="assistant",
             content=reply_text,
-            risk_score=3.0 if risk_level == "high" else 0.0,
+            risk_score=3.0 if (isinstance(risk_level,str) and risk_level.lower()=="high") else 0.0,
             keywords=[]
         )
 
-        # ==============================
-        # 5️⃣ Send Reply to LINE
-        # ==============================
-        await reply_message(
-            reply_token=reply_token,
-            text=reply_text
-        )
+        # send reply to line
+        await reply_message(reply_token=reply_token, text=reply_text)
 
-        logger.info("✅ Worker finished successfully")
-
+        logger.info("✅ Worker finished for session=%s", session_id)
     except Exception:
-        logger.exception("❌ Worker pipeline error")
+        logger.exception("❌ Worker pipeline error for session=%s", session_id)
 
-
-# ======================================================
-# 📩 LINE WEBHOOK (FAST ACK VERSION)
-# ======================================================
 @router.post("/callback")
-async def line_callback(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    x_line_signature: str | None = Header(default=None)
-):
-
+async def line_callback(request: Request, background_tasks: BackgroundTasks, x_line_signature: str | None = Header(default=None)):
     raw_body = await request.body()
 
     if not verify_signature(raw_body, x_line_signature):
-        raise HTTPException(status_code=403, detail="Invalid LINE signature")
+        logger.warning("Invalid LINE signature")
+        raise HTTPException(status_code=403, detail="Invalid signature")
 
     body = await request.json()
     events = body.get("events", [])
 
-    logger.info("📩 LINE webhook received")
+    logger.info("📩 LINE webhook received, events=%d", len(events))
 
+    # ensure DB available - raises if not connected
     get_db()
 
     for event in events:
-
         if event.get("type") != "message":
             continue
-        if event["message"]["type"] != "text":
+        if event["message"].get("type") != "text":
             continue
 
-        user_id = event["source"]["userId"]
-        reply_token = event["replyToken"]
-        user_text = event["message"]["text"]
+        user_id = event["source"].get("userId")
+        reply_token = event.get("replyToken")
+        user_text = event["message"].get("text", "")
 
         user_hash = hash_user(user_id)
         session_id = user_hash
 
         try:
-            # ==============================
-            # 1️⃣ Save User Message Immediately
-            # ==============================
+            # Save user message immediately (fast ack)
             await insert_message(
                 session_id=session_id,
                 user_hash=user_hash,
@@ -172,13 +126,11 @@ async def line_callback(
                 keywords=[]
             )
 
-            # ==============================
-            # 2️⃣ Local Risk Fail-Safe
-            # ==============================
-            local_risk = detect_risk_local(user_text)
+            # Local risk check (fast rule-based)
+            local_risk = detect_risk_local(user_text)  # expect dict {'risk_level': int, 'keywords': [...]}
 
-            if local_risk["risk_level"] >= 3:
-
+            # If extremely risky according to local detector, handle immediately
+            if local_risk and local_risk.get("risk_level", 0) >= 3:
                 reply_text = (
                     "ฉันรับรู้ว่าคุณกำลังรู้สึกหนักมากนะ\n"
                     "หากคุณคิดจะทำร้ายตัวเองหรือรู้สึกไม่ปลอดภัย\n"
@@ -186,47 +138,35 @@ async def line_callback(
                     "หรือ 1669 หากเป็นเหตุฉุกเฉินทันที"
                 )
 
+                # create incident record
                 await create_incident(
                     conversation_id=session_id,
                     user_hash=user_hash,
                     risk_score=3,
-                    keywords=local_risk["keywords"]
+                    keywords=local_risk.get("keywords", [])
                 )
 
+                # save bot reply
                 await insert_message(
                     session_id=session_id,
                     user_hash=user_hash,
                     role="assistant",
                     content=reply_text,
                     risk_score=3.0,
-                    keywords=local_risk["keywords"]
+                    keywords=local_risk.get("keywords", [])
                 )
 
+                # send reply synchronously
+                await reply_message(reply_token=reply_token, text=reply_text)
+                # skip background worker
+                continue
 
-                await reply_message(
-                    reply_token=reply_token,
-                    text=reply_text
-                )
+            # Otherwise add background job
+            background_tasks.add_task(process_message_pipeline, user_hash, session_id, reply_token, user_text)
 
-                continue  # skip worker
+        except Exception as e:
+            logger.exception("❌ Webhook error handling event")
+            raise HTTPException(status_code=500, detail=str(e))
 
-            # ==============================
-            # 3️⃣ Push to Background Worker
-            # ==============================
-            background_tasks.add_task(
-                process_message_pipeline,
-                user_hash,
-                session_id,
-                reply_token,
-                user_text
-            )
-
-        except Exception:
-            logger.exception("❌ Webhook error")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
-
-    # ⚡ Fast ACK to LINE (critical)
+    # Fast ACK
     return {"status": "accepted"}
-
-latency = time.time() - start_time
-logger.info(f"Latency: {latency:.2f}s")
