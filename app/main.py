@@ -58,8 +58,8 @@ async def health_db():
 async def risk_summary():
     db = get_db()
     pipeline = [
-        {"$group": {"_id": "$risk_level", "count": {"$sum": 1}}},
-        {"$sort": {"_id": -1}}
+    {"$group": {"_id": "$risk_score", "count": {"$sum": 1}}},
+    {"$sort": {"_id": -1}}
     ]
     rows = await db.messages.aggregate(pipeline).to_list(length=20)
     return {"summary": rows}

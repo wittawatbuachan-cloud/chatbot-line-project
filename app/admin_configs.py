@@ -25,7 +25,7 @@ def verify_admin(x_admin_key: str = Header(...)):
 
 @router.get("/configs")
 async def read_configs(actor: str = Depends(verify_admin)):
-    config = get_system_config()
+    config = await get_system_config()
     return config
 
 

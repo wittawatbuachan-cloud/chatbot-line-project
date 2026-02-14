@@ -46,43 +46,40 @@ async def process_message_pipeline(user_hash: str, session_id: str, reply_token:
     """
     logger.info("🚀 Worker started for session=%s", session_id)
     try:
-        # Optionally: cleaned_text, tokens = tokenize_text(user_text)
-        cleaned_text = user_text  # placeholder if no preprocessing implemented
+        # (1) preprocessing placeholder
+        cleaned_text = user_text
 
-        # Call AI
-        ai_result = await generate_reply(session_id, cleaned_text)
+        # (2) Call AI service
+        await generate_reply(user_hash, session_id, cleaned_text)
 
-        emotion = ai_result.get("emotion", None)
-        risk_level = ai_result.get("risk_level", None)
-        ai_reply = ai_result.get("reply", "ขออภัย ระบบขัดข้องชั่วคราว")
+        if not isinstance(ai_result, dict):
+            logger.warning("AI result invalid format for session=%s", session_id)
+            ai_result = {}
 
-        # escalate if risk high
-        if isinstance(risk_level, str) and risk_level.lower() == "high":
-            # create incident
-            await create_incident(conversation_id=session_id, user_hash=user_hash, risk_score=3, keywords=[emotion] if emotion else [])
-            reply_text = (
-                "ฉันรับรู้ว่าคุณกำลังรู้สึกหนักมากนะ\n"
-                "หากคุณคิดจะทำร้ายตัวเองหรือรู้สึกไม่ปลอดภัย\n"
-                "โปรดติดต่อสายด่วนสุขภาพจิต 1323 (ประเทศไทย)\n"
-                "หรือ 1669 หากเป็นเหตุฉุกเฉินทันที"
-            )
-        else:
-            reply_text = ai_reply
+        emotion = ai_result.get("emotion", "unknown")
+        risk_level = ai_result.get("risk_level", "unknown")
+        reply_text = ai_result.get("reply", "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง")
 
-        # Save assistant message
+        # (3) Save assistant message (NO escalation here)
         await insert_message(
             session_id=session_id,
             user_hash=user_hash,
             role="assistant",
             content=reply_text,
-            risk_score=3.0 if (isinstance(risk_level,str) and risk_level.lower()=="high") else 0.0,
-            keywords=[]
-        )
+            risk_score=0.0,  # escalation handled only in local layer
+            keywords=[emotion] if emotion and emotion != "unknown" else []
+            )
 
-        # send reply to line
+        # (4) Send reply back to LINE
         await reply_message(reply_token=reply_token, text=reply_text)
 
-        logger.info("✅ Worker finished for session=%s", session_id)
+        logger.info(
+            "✅ Worker finished for session=%s emotion=%s ai_risk=%s",
+            session_id,
+            emotion,
+            risk_level
+            )
+
     except Exception:
         logger.exception("❌ Worker pipeline error for session=%s", session_id)
 
