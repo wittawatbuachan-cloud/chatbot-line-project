@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import os
 import httpx
 from bson import ObjectId
-from config.db import db
+from config.db import db, get_db
 from config.logging_config import get_logger
 from app.mongo_collections import INCIDENTS
 
@@ -21,6 +21,8 @@ async def create_incident(
     risk_score: float,
     keywords: list[str]
 ):
+    
+    db = get_db()
 
     doc = {
         "user_hash": user_hash,
@@ -45,15 +47,15 @@ async def create_incident(
 # ==============================
 async def notify_admin(incident_id: str):
 
-    if not ADMIN_WEBHOOK_URL:
-        logger.warning("ADMIN_WEBHOOK_URL not set")
-        return
-
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            await client.post(ADMIN_WEBHOOK_URL, json={
-                "incident_id": incident_id
-            })
+            response = await client.post(
+                ADMIN_WEBHOOK_URL,
+                json={"incident_id": incident_id}
+            )
+            response.raise_for_status()
+
+        db = get_db()
 
         await db[INCIDENTS].update_one(
             {"_id": ObjectId(incident_id)},
