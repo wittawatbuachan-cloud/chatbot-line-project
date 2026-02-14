@@ -50,7 +50,7 @@ async def process_message_pipeline(user_hash: str, session_id: str, reply_token:
         cleaned_text = user_text  # placeholder if no preprocessing implemented
 
         # Call AI
-        ai_result = await generate_reply(cleaned_text)
+        ai_result = await generate_reply(session_id, cleaned_text)
 
         emotion = ai_result.get("emotion", None)
         risk_level = ai_result.get("risk_level", None)
