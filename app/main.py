@@ -39,8 +39,8 @@ async def startup():
 async def shutdown():
     await close_db()
 
-@app.get("/")
-def root():
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
     return {"status": "ok"}
 
 @app.get("/health/db")

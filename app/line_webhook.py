@@ -46,38 +46,40 @@ async def process_message_pipeline(user_hash: str, session_id: str, reply_token:
     """
     logger.info("🚀 Worker started for session=%s", session_id)
     try:
-        # (1) preprocessing placeholder
         cleaned_text = user_text
 
-        # (2) Call AI service
-        await generate_reply(user_hash, session_id, cleaned_text)
+        ai_result = {}
+        try:
+            ai_result = await generate_reply(user_hash, session_id, cleaned_text)
+        except Exception:
+            logger.exception("AI call failed for session=%s", session_id)
 
-        if not isinstance(ai_result, dict):
-            logger.warning("AI result invalid format for session=%s", session_id)
-            ai_result = {}
+            if not isinstance(ai_result, dict):
+                ai_result = {}
 
-        emotion = ai_result.get("emotion", "unknown")
-        risk_level = ai_result.get("risk_level", "unknown")
-        reply_text = ai_result.get("reply", "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง")
-
-        # (3) Save assistant message (NO escalation here)
-        await insert_message(
-            session_id=session_id,
-            user_hash=user_hash,
-            role="assistant",
-            content=reply_text,
-            risk_score=0.0,  # escalation handled only in local layer
-            keywords=[emotion] if emotion and emotion != "unknown" else []
+            emotion = ai_result.get("emotion", "unknown")
+            risk_level = ai_result.get("risk_level", "unknown")
+            reply_text = ai_result.get(
+                "reply",
+                "ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"
             )
 
-        # (4) Send reply back to LINE
-        await reply_message(reply_token=reply_token, text=reply_text)
+            await insert_message(
+                session_id=session_id,
+                user_hash=user_hash,
+                role="assistant",
+                content=reply_text,
+                risk_score=0.0,
+                keywords=[emotion] if emotion != "unknown" else []
+            )
 
-        logger.info(
-            "✅ Worker finished for session=%s emotion=%s ai_risk=%s",
-            session_id,
-            emotion,
-            risk_level
+            await reply_message(reply_token=reply_token, text=reply_text)
+
+            logger.info(
+                "✅ Worker finished session=%s emotion=%s ai_risk=%s",
+                session_id,
+                emotion,
+                risk_level
             )
 
     except Exception:

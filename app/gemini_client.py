@@ -145,7 +145,7 @@ def _call_model_sync(model: str, contents: Any, config: dict | None = None) -> s
         raise RuntimeError("Unsupported GenAI SDK mode")
 
 
-async def generate_content_with_retry(prompt_contents: Any, model: str = "gemini-1.5-pro", max_retries: int = 3, backoff_base: float = 1.0):
+async def generate_content_with_retry(prompt_contents: Any, model: str = "gemini-2.0-flash", max_retries: int = 3, backoff_base: float = 1.0):
     """
     Async wrapper with exponential backoff. `prompt_contents` should match the SDK 'contents' param:
     - For google.genai: contents is usually a list of message dicts or a text string depending on SDK version.
@@ -178,7 +178,7 @@ async def generate_empathetic_response(prompt_text: str):
     contents = prompt_text
 
     try:
-        raw = await generate_content_with_retry(prompt_contents=contents, model=os.getenv("GEMINI_MODEL", "gemini-1.5-pro"), max_retries=3)
+        raw = await generate_content_with_retry(prompt_contents=contents, model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"), max_retries=3)
         raw_text = raw.strip() if isinstance(raw, str) else str(raw)
         logger.info("RAW GEMINI: %s", raw_text[:1000])
         # Try parse JSON
