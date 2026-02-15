@@ -10,7 +10,11 @@ async def is_blocked(user_hash: str) -> bool:
 
 
 async def block_user(user_hash: str, reason: str = "manual"):
+    if not user_hash:
+        raise ValueError("user_hash is required")
+
     db = get_db()
+
     await db[COLLECTION].insert_one({
         "user_hash": user_hash,
         "reason": reason,
