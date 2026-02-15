@@ -9,6 +9,7 @@ from app.admin_configs import router as admin_configs_router
 from app.admin_metrics import router as admin_metrics_router
 from app.admin_dashboard import router as admin_dashboard_router
 from app.admin_audit import router as admin_audit_router
+from app.admin_block_router import router as admin_block_router
 import time
 
 async def add_latency_metrics(request: Request, call_next):
@@ -21,6 +22,7 @@ async def add_latency_metrics(request: Request, call_next):
 logger = get_logger("main", "logs/main.log")
 app = FastAPI()
 
+app.include_router(admin_block_router)
 app.middleware("http")(add_latency_metrics)
 app.include_router(admin_audit_router)
 app.include_router(admin_dashboard_router)

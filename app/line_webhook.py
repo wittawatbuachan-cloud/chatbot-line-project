@@ -8,6 +8,7 @@ from app.ai_service import generate_reply
 from app.risk_detector import detect_risk_local
 from app.incident_repo import create_incident
 from config.db import get_db
+from app.block_repo import is_blocked
 import hmac
 import hashlib
 import base64
@@ -109,6 +110,17 @@ async def line_callback(request: Request, background_tasks: BackgroundTasks, x_l
 
         user_hash = hash_user(user_id)
         session_id = user_hash
+
+        # 🚫 BLOCK CHECK
+        if await is_blocked(user_hash):
+            logger.warning("🚫 Blocked user attempted access: %s", user_hash)
+
+        # optional: ตอบเตือน
+            await reply_message(
+                reply_token=reply_token,
+                text="บัญชีนี้ถูกระงับการใช้งาน ตามคำสั่งของผู้ดูแลระบบ กรุณาติดต่อผู้ดูแลระบบ"
+            )
+            continue
 
         try:
             # Save user message immediately (fast ack)

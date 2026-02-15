@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # LINE
     LINE_CHANNEL_SECRET: str | None = None
     LINE_CHANNEL_TOKEN: str | None = None
+    ADMIN_KEY: str | None = None
 
     model_config = ConfigDict(
         env_file=".env",
